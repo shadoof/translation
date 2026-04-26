@@ -222,7 +222,7 @@ function setup() {
   titles.push(INSTALLED ? " " : "Spacebar or mobile two-finger press to toggle audio");
   titles.push(INSTALLED ? " " : "hold Shift or mobile press for state information");
   titles.push(INSTALLED ? " " : "Q or mobile two-finger swipe-left to quit abruptly");
-  titles.push("programmatology.shadoof.net/?translation");
+  titles.push("programmatology.com/?translation");
 
   titlePassage = new Passage();
   titlePassage.model[DEFAULT_LANGUAGE] = titles;
