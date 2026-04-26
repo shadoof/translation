@@ -1,0 +1,17 @@
+body {
+/*  min-width: 1280px;*/
+  background-color: rgb(0,0,0);
+  overflow-x: hidden;
+  overflow-y: hidden;
+  text-align: center;
+  color: gray;
+  font: 20px Arial;
+}
+body.light {
+  background-color: rgb(232, 232, 232);
+  color: #333;
+}
+canvas {
+  margin: 0px 0px 0;
+  border: 0px;
+}
