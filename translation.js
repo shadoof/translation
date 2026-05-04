@@ -69,10 +69,12 @@ var phase = 0;
 const SEMITONE_RATIO = Math.pow(2, 1/12);
 const BASE_NOTE = 60, BREATH = 5000;
 var compressor;
+var masterGain, masterLimiter;
 var audioCursors = [];
 var langSounds = {};
 var bell, rolls,grin, letternotes;
 var sounds = [];
+var audioInitialized = false;
 var breathin = true, lastBreath = 0;
 var playCount = 0;
 var numberOfAudioCursors;
@@ -95,30 +97,18 @@ function preload() {
   // ---- IMAGES ----
   for (let i = 0; i < 27; i++) {
     let fn = (i < 10) ? "w0" + i : "w" + i;
-    let newCursor = loadImage("abimages/" + fn + ".png");
+    let newCursor = loadImage("abimages/" + fn + ".webp");
     cursorImages.push(newCursor);
   }
   for (let lang of LANGUAGES) {
     for (let i = 0; i < 27; i++) {
       let fn = (i < 10) ? lang + "0" + i : lang + i;
-      let newImage = loadImage("transimages/" + fn + ".png");
+      let newImage = loadImage("transimages/" + fn + ".webp");
       correlativeImages[lang].push(newImage);
     }
   }
   // ----- AUDIO -----
-  for (let lang of LANGUAGES) {
-    langSounds[lang] = [26];
-    for (let i = 0; i < 26; i++) {
-      langSounds[lang][i] = new Tone.Player("transaudio/" + lang.substr(0,1) + ABC.substr(i+1,1) + ".wav");
-    }
-  }
-  bell = new Tone.Player("transaudio/underwaterBellStereo.mp3");
-  sounds.push(bell);
-  rolls = new Tone.Player("transaudio/surdoRollsStereo.mp3");
-  sounds.push(rolls);
-  grin = new Tone.Player("transaudio/grin.wav");
-  sounds.push(grin);
-  if (!browser.mobile) compressor = new Tone.Compressor();
+  // Tone objects are created lazily on first user gesture to satisfy autoplay policy.
   letternotes = loadStrings("letternotes.json");
   //
   rg = new RiGrammar();
@@ -958,6 +948,7 @@ function textTo(rt, newWord, seconds, fullOn) {
 
 function toggleAudio(p) {
   if (p) {
+    ensureAudioReady();
     paused = false;
     withAudio = true;
     for (let ac of audioCursors) {
@@ -969,10 +960,6 @@ function toggleAudio(p) {
     // for (var i = 0; i < audioCursors.length; i++) {
     //   audioCursors[i].lastStep = millis();
     // }
-    // info("gets here first: " + getAudioContext().state);
-    if (Tone.context.state !== "running") {
-      Tone.context.resume();
-    }
   } else {
     paused = true;
     withAudio = false;
@@ -987,6 +974,47 @@ function toggleAudio(p) {
     // }
   }
   setStatusCaption(phase);
+}
+
+function initializeAudioObjects() {
+  if (audioInitialized) return;
+  // Global output headroom to avoid clipping when many voices overlap.
+  masterGain = new Tone.Gain(0.7);
+  if (typeof Tone.Limiter === "function") {
+    masterLimiter = new Tone.Limiter(-1);
+    masterGain.connect(masterLimiter);
+    masterLimiter.toMaster();
+  } else {
+    masterGain.toMaster();
+  }
+  for (let lang of LANGUAGES) {
+    langSounds[lang] = [26];
+    for (let i = 0; i < 26; i++) {
+      langSounds[lang][i] = new Tone.Player("transaudio/" + lang.substr(0,1) + ABC.substr(i+1,1) + ".mp3");
+    }
+  }
+  bell = new Tone.Player("transaudio/underwaterBellStereo.mp3");
+  sounds.push(bell);
+  rolls = new Tone.Player("transaudio/surdoRollsStereo.mp3");
+  sounds.push(rolls);
+  grin = new Tone.Player("transaudio/grin.mp3");
+  sounds.push(grin);
+  if (!browser.mobile) {
+    compressor = new Tone.Compressor(-18, 3);
+    compressor.connect(masterGain);
+  }
+  audioInitialized = true;
+}
+
+function ensureAudioReady() {
+  if (!audioInitialized) initializeAudioObjects();
+  if (Tone.context.state !== "running") {
+    if (typeof Tone.start === "function") {
+      Tone.start().catch(function() {});
+    } else {
+      Tone.context.resume().catch(function() {});
+    }
+  }
 }
 
 // ---- OBJECTS wrapping p5 Images ----
@@ -1271,24 +1299,39 @@ function doAudioBehavior(audioCursor, buoyancy, language, letterNum, letterWas, 
 // }
 
 function playSound(instrument,midinote,pan,atTime) {
+  if (!audioInitialized || !instrument) return;
   pan = pan || 0;
   // atTime = (atTime === undefined) ? 0 : audioContext.currentTime + atTime / 1000;
+  let output = masterGain || Tone.Master;
   let sound, channel;
   if (browser.mobile) {
     // info("mobile audio context running? " + (Tone.context.state === "running"));
-    sound = new Tone.Player(instrument.buffer).toMaster();
+    sound = new Tone.Player(instrument.buffer).connect(output);
   } else {
     if (browser.name == "safari") {
-      sound = new Tone.Player(instrument.buffer).toMaster();
+      sound = new Tone.Player(instrument.buffer).connect(output);
     } else {
-      channel = new Tone.Channel(0,pan).connect(compressor).toMaster();
+      channel = new Tone.Channel(-6,pan).connect(compressor);
       // info("should be panning: " + channel.pan.value);
       sound = new Tone.Player(instrument.buffer);
       sound.chain(channel);
     }
   }
+  sound.volume.value = -3;
+  sound.fadeIn = 0.003;
+  sound.fadeOut = 0.02;
   sound.playbackRate = Math.pow(SEMITONE_RATIO, midinote - BASE_NOTE);
   sound.start();
+  // Dispose nodes after playback to prevent accumulation of idle graph nodes,
+  // which causes gain-stacking distortion through the compressor over time.
+  var disposeTarget = channel || sound;
+  var disposeDelay = Math.max(
+    (sound.buffer ? sound.buffer.duration : 3) * 1000 + 500, 3500
+  );
+  setTimeout(function() {
+    try { sound.dispose(); } catch(e) {}
+    try { if (channel) channel.dispose(); } catch(e) {}
+  }, disposeDelay);
 }
 
 function preTonePlaySound(instrument,midinote,pan,atTime) {
