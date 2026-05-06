@@ -87,7 +87,7 @@ function preload() {
   // ---- FONTS ----
   // titleFont = loadFont('../fonts/TrajanPro-Regular.otf');
   // mono possible: DejaVuSansMono, Consolas, AndaleMono, PrestigeEliteStd-Bd.otf
-  monoFont = loadFont("fonts/Monaco.ttf");
+  monoFont = loadFont("fonts/Inconsolata-Regular.ttf");
   // serif possible: iowansrm, Constantia, DejaVuSerif, Cambria, Perpetua
   // serifFont = loadFont('../fonts/iowaosrm.ttf')
   // captionFont = loadFont('../fonts/Monaco.ttf');
@@ -203,7 +203,7 @@ function setup() {
   titles.push("t r a n s l a t i o n");
   titles.push("John Cayley");
   titles.push("a m b i e n t   p o e t i c s");
-  titles.push("based on the 2004 QuickTime version | refactured in js 2019");
+  titles.push("based on the 2004 QuickTime version | refactured in js 2019, 2026");
   titles.push("organized sound designs by Giles Perring");
   titles.push("alphabets sung by Melanie Pappenheim");
   titles.push(VERSION + " p5.js, Tone.js, Daniel C. Howe’s RiTa");
