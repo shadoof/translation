@@ -37,7 +37,11 @@ const FONT_SIZE = 20, LEADING = FONT_SIZE + Math.ceil(FONT_SIZE / 3);
 // var ALPHA_LOOP = "jiaeocuyvwmnhrlftkxszgqbpd";
 const DEFAULT_LANGUAGE = "en";
 const LANGUAGES = ["de","fr","en","dp","fp","ep"];
-var surfacingLang = "de", sLangIndex = 0;
+// URL parameters: ?skipintro skips the titles; ?lang=de|fr|en|dp|fp|ep sets the surfacing language
+const URL_PARAMS = new URLSearchParams(window.location.search);
+const SKIP_INTRO = URL_PARAMS.has("skipintro") && !["0", "false"].includes(URL_PARAMS.get("skipintro"));
+const FIRST_PHASE = SKIP_INTRO ? 3 : 0;
+var surfacingLang = LANGUAGES.includes(URL_PARAMS.get("lang")) ? URL_PARAMS.get("lang") : "de", sLangIndex = 0;
 //
 // general
 var promises = [], captions = [];
@@ -63,7 +67,7 @@ var statusCaptions = [
   "translation quit"
 ];
 var stateHandler, rg;
-var phase = 0;
+var phase = FIRST_PHASE;
 //
 // audio-related
 const SEMITONE_RATIO = Math.pow(2, 1/12);
@@ -561,7 +565,7 @@ function handleInterruption(interruptError, feedback) {
     break;
   case "previous":
     phase--;
-    if (phase == 2 || phase < 0) phase = 0;
+    if (phase == 2 || phase < FIRST_PHASE) phase = FIRST_PHASE;
     // else bumpPhase(-1);
     newStandingOrder = "continue";
     break;
