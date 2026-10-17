@@ -46,6 +46,7 @@ var surfacingLang = LANGUAGES.includes(URL_PARAMS.get("lang")) ? URL_PARAMS.get(
 // general
 var promises = [], captions = [];
 var standingOrder = "continue", feedback = false;
+var captionsUntil = 0, CAPTION_HOLD_MS = 1500, CAPTION_FADE_MS = 700, CAPTION_ALPHA = 95;
 var showStatusUntil = 0;
 var monoFont, captionFont;
 // NOT used in translation
@@ -119,6 +120,36 @@ function preload() {
   rg.loadFrom("translationgrammar.json");
 }
 
+// ---- RESPONSIVE STAGE ----
+// The WIDTH x HEIGHT canvas is the logical "stage"; style.css scales it to fit
+// the viewport (letterboxed). Here we only raise pixel density so it stays crisp.
+function stageScale() {
+  // the scale the browser is actually displaying, not a computed estimate
+  let w = canvas ? canvas.getBoundingClientRect().width : window.innerWidth;
+  return w / WIDTH;
+}
+
+function stageDensity() {
+  let d = (window.devicePixelRatio || 1) * stageScale();
+  return Math.max(1, Math.min(3, Math.ceil(d * 2) / 2));
+}
+
+var resizeTimer;
+function windowResized() {
+  clearTimeout(resizeTimer);
+  // changing density reallocates the canvas, so wait for resizing to settle
+  resizeTimer = setTimeout(function() {
+    let d = stageDensity();
+    if (d !== pixelDensity()) pixelDensity(d);
+  }, 200);
+}
+
+// ends a press, leaving the captions to fade away shortly afterwards
+function releasePress() {
+  if (standingOrder == "pressing") standingOrder = "continue";
+  captionsUntil = millis() + CAPTION_HOLD_MS;
+}
+
 function setup() {
 
   info("translation version " + VERSION);
@@ -177,9 +208,11 @@ function setup() {
     // info("press: " + standingOrder);
   });
 
-  gestures.on("pressup", function() {
-    standingOrder = "continue";
-    // info("pressup: " + standingOrder);
+  gestures.on("pressup", releasePress);
+  // Hammer emits no pressup if the finger moves too far or the touch is
+  // cancelled, so also release on the raw touch/pointer events
+  ["touchend", "touchcancel", "pointerup", "pointercancel"].forEach(function(evt) {
+    canvas.addEventListener(evt, releasePress);
   });
 
   gestures.on("doublepress", function() {
@@ -656,23 +689,26 @@ function draw() {
 
   if (phase > 2) drawImages();
 
+  // captions stay while Shift is held, a press is held, or quitting;
+  // after a release they linger briefly, then fade away
+  let captionAlpha = 0;
   if (keyIsDown(16) || standingOrder == "quit" || standingOrder == "pressing") {
-    if (phase > 2) {
-      for (let caption of captions) {
-        caption.alpha(95);
-      }
-    }
-    statusCaption.alpha(95);
+    captionAlpha = CAPTION_ALPHA;
+    captionsUntil = millis();
     cursor();
   } else {
-    for (let caption of captions) {
-      caption.alpha(0);
-    }
-    statusCaption.alpha(0);
+    let remaining = captionsUntil + CAPTION_FADE_MS - millis();
+    if (remaining > 0) captionAlpha = CAPTION_ALPHA * Math.min(1, remaining / CAPTION_FADE_MS);
     if (PRODUCTION) noCursor();
   }
+  if (phase > 2) {
+    for (let caption of captions) {
+      caption.alpha(captionAlpha);
+    }
+  }
+  statusCaption.alpha(captionAlpha);
 
-  if (millis() < showStatusUntil) statusCaption.alpha(95);
+  if (millis() < showStatusUntil) statusCaption.alpha(CAPTION_ALPHA);
 
   RiText.drawAll();
 }
