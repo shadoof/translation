@@ -37,9 +37,9 @@ const FONT_SIZE = 20, LEADING = FONT_SIZE + Math.ceil(FONT_SIZE / 3);
 // var ALPHA_LOOP = "jiaeocuyvwmnhrlftkxszgqbpd";
 const DEFAULT_LANGUAGE = "en";
 const LANGUAGES = ["de","fr","en","dp","fp","ep"];
-// URL parameters: ?skipintro skips the titles; ?lang=de|fr|en|dp|fp|ep sets the surfacing language
+// URL parameters: ?skipintro (or ?kiosk) skips the titles, with or without =1; ?lang=de|fr|en|dp|fp|ep sets the surfacing language
 const URL_PARAMS = new URLSearchParams(window.location.search);
-const SKIP_INTRO = URL_PARAMS.has("skipintro") && !["0", "false"].includes(URL_PARAMS.get("skipintro"));
+const SKIP_INTRO = ["skipintro", "kiosk"].some(k => URL_PARAMS.has(k) && !["0", "false"].includes(URL_PARAMS.get(k)));
 const FIRST_PHASE = SKIP_INTRO ? 3 : 0;
 var surfacingLang = LANGUAGES.includes(URL_PARAMS.get("lang")) ? URL_PARAMS.get("lang") : "de", sLangIndex = 0;
 //

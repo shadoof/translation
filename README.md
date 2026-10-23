@@ -2,7 +2,7 @@
 webapp version of the translation project
 
 ## URL parameters
-- `?skipintro` skips the opening titles and goes straight to the passages surfacing.
+- `?skipintro` (or its synonym `?kiosk`) skips the opening titles and goes straight to the passages surfacing. Works with or without a value (`?skipintro`, `?skipintro=1`, `?kiosk`, `?kiosk=1`); `=0` or `=false` leaves the intro on.
 - `?lang=de|fr|en|dp|fp|ep` sets the language in which the passages first surface (default `de`).
 - Combine with `&`, e.g. `?skipintro&lang=fr`.
 
